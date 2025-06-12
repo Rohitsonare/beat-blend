@@ -8,6 +8,7 @@ const { checkDbStatus } = require('./middleware/dbStatus');
 const userRoutes = require('./routes/users');
 const trackRoutes = require('./routes/tracks');
 const statusRoutes = require('./routes/status');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -33,6 +34,7 @@ app.use('/api', checkDbStatus);
 // API routes
 app.use('/api/users', userRoutes);
 app.use('/api/tracks', trackRoutes);
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

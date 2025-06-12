@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const bcrypt = require('bcryptjs');
 
 const userSchema = new Schema({
   username: {
@@ -22,6 +23,11 @@ const userSchema = new Schema({
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters long']
   },
+  city: {
+    type: String,
+    required: [true, 'City is required for location-based features'],
+    trim: true
+  },
   profilePicture: {
     type: String,
     default: ''
@@ -42,19 +48,29 @@ const userSchema = new Schema({
   timestamps: true
 });
 
-// Pre-save hook to hash password (would add bcrypt in a real application)
-userSchema.pre('save', function(next) {
-  // Here you would typically hash the password with bcrypt
-  // For now, we'll just log that the user is being saved
-  console.log('User being saved:', this.username);
-  next();
+// Pre-save hook to hash password
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it's modified (or new)
+  if (!this.isModified('password')) return next();
+  
+  try {
+    // Generate a salt
+    const salt = await bcrypt.genSalt(10);
+    // Hash the password along with the new salt
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Method to compare password (would use bcrypt in a real application)
-userSchema.methods.comparePassword = function(candidatePassword) {
-  // Here you would typically compare with bcrypt
-  // For now, just return a placeholder
-  return Promise.resolve(candidatePassword === this.password);
+// Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error(error);
+  }
 };
 
 const User = mongoose.model('User', userSchema);
