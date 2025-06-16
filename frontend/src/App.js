@@ -14,6 +14,7 @@ import PrivateRoute from './components/routing/PrivateRoute';
 
 // Pages
 import Home from './pages/Home';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
@@ -22,11 +23,12 @@ function App() {
         <div className="App">
           <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
           <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/" element={
+            <Route path="/dashboard" element={
               <PrivateRoute>
-                <Home />
+                <Dashboard />
               </PrivateRoute>
             } />
           </Routes>
