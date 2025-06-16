@@ -1,4 +1,4 @@
-    const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 // MongoDB connection URI
@@ -6,8 +6,6 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/beatbl
 
 // MongoDB connection options
 const options = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
   autoIndex: true, // Build indexes
   maxPoolSize: 10, // Maintain up to 10 socket connections

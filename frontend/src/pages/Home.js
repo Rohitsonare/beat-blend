@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaMusic, FaHeadphones } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 const HomeContainer = styled.div`
   min-height: 100vh;
@@ -114,6 +115,15 @@ const VisualCircle = styled(motion.div)`
 `;
 
 const Home = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
   return (
     <HomeContainer>
       <Header>

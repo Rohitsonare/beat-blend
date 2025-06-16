@@ -78,7 +78,7 @@ const Login = () => {
     
     if (success) {
       toast.success('Login successful!');
-      navigate('/');
+      navigate('/dashboard');
     } else {
       // Refresh captcha on failed login
       loadCaptcha();
