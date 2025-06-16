@@ -1,12 +1,14 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import AppleLogin from 'react-apple-login';
+import { FaGoogle, FaApple, FaMusic } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FaMusic, FaRedo } from 'react-icons/fa';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   AuthContainer,
   AuthFormContainer,
@@ -18,197 +20,132 @@ import {
   FormButton,
   FormLink,
   ErrorMessage,
-  CaptchaContainer,
-  CaptchaImage,
-  RefreshButton,
-  MusicNote,
-  VinylRecord,
-  WaveAnimation,
-  PulsingCircle
+  SocialButton,
+  OrDivider
 } from './AuthStyles';
 
 // Form validation schema
 const schema = yup.object().shape({
   email: yup.string().email('Please enter a valid email').required('Email is required'),
-  password: yup.string().required('Password is required'),
-  captcha: yup.string().required('Please enter the captcha text')
+  password: yup.string().required('Password is required')
 });
 
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6, ease: 'easeOut' }
+  }
+};
+
 const Login = () => {
-  const { login, error, clearError, getCaptcha, isAuthenticated } = useContext(AuthContext);
-  const [captchaData, setCaptchaData] = useState({ captchaSvg: '', captchaId: '' });
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated, error: authError } = useAuth();
   const navigate = useNavigate();
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState(null);
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: yupResolver(schema)
   });
 
   // Redirect if authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
-  // Load captcha on component mount
-  useEffect(() => {
-    loadCaptcha();
-    // Clear any previous errors
-    clearError();
-  }, []);
-
-  const loadCaptcha = async () => {
-    const data = await getCaptcha();
-    if (data) {
-      setCaptchaData(data);
-    }
-  };
-
   const onSubmit = async (data) => {
-    setIsLoading(true);
-    
-    // Add captchaId to form data
-    const formData = {
-      ...data,
-      captchaId: captchaData.captchaId
-    };
-    
-    const success = await login(formData);
-    
-    if (success) {
+    try {
+      setIsLoading(true);
+      setLoginError(null);
+      await login(data);
       toast.success('Login successful!');
       navigate('/dashboard');
-    } else {
-      // Refresh captcha on failed login
-      loadCaptcha();
-      reset({ ...data, captcha: '' });
-    }
-    
-    setIsLoading(false);
-  };
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { 
-        duration: 0.5,
-        when: 'beforeChildren',
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { 
-      y: 0, 
-      opacity: 1,
-      transition: { type: 'spring', stiffness: 100 }
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError(error.response?.data?.message || 'Login failed. Please try again.');
+      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <AuthContainer>
-      {/* Decorative elements */}
-      <MusicNote size="2rem" top="10%" left="10%" duration="7s" delay="0.5s">♪</MusicNote>
-      <MusicNote size="3rem" top="20%" left="80%" duration="8s" delay="1s">♫</MusicNote>
-      <MusicNote size="2.5rem" top="70%" left="15%" duration="6s" delay="1.5s">♩</MusicNote>
-      <MusicNote size="4rem" top="60%" left="75%" duration="9s" delay="0.2s">♬</MusicNote>
-      
-      <VinylRecord size="180px" top="10%" right="10%" duration="25s" />
-      <PulsingCircle size="300px" top="-150px" left="-150px" duration="5s" />
-      <PulsingCircle size="250px" top="60%" left="80%" duration="7s" />
-      
-      <WaveAnimation />
-      
-      <AuthFormContainer
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <FormTitle variants={itemVariants}>
-          <FaMusic style={{ marginRight: '10px' }} />
-          Beat Blend Login
-        </FormTitle>
-        
-        <FormSubtitle variants={itemVariants}>
-          Sign in to access your music collection
-        </FormSubtitle>
-        
-        {error && (
-          <ErrorMessage 
-            variants={itemVariants}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {error}
-          </ErrorMessage>
-        )}
-        
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Email</FormLabel>
-            <FormInput 
-              type="email" 
-              placeholder="your@email.com" 
-              {...register('email')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.email && <p className="error-text">{errors.email.message}</p>}
-          </FormGroup>
-          
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Password</FormLabel>
-            <FormInput 
-              type="password" 
-              placeholder="Your password" 
-              {...register('password')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.password && <p className="error-text">{errors.password.message}</p>}
-          </FormGroup>
-          
-          <CaptchaContainer variants={itemVariants}>
-            <FormLabel>Captcha</FormLabel>
-            <CaptchaImage 
-              dangerouslySetInnerHTML={{ __html: captchaData.captchaSvg }}
-            />
-            <FormInput 
-              type="text" 
-              placeholder="Enter captcha text" 
-              {...register('captcha')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.captcha && <p className="error-text">{errors.captcha.message}</p>}
-            <RefreshButton 
-              type="button" 
-              onClick={loadCaptcha}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaRedo /> Refresh Captcha
-            </RefreshButton>
-          </CaptchaContainer>
-          
-          <FormButton 
-            type="submit" 
-            disabled={isLoading}
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </FormButton>
-        </form>
-        
-        <FormLink variants={itemVariants}>
-          Don't have an account? <Link to="/register">Sign up</Link>
-        </FormLink>
-      </AuthFormContainer>
+        <AuthFormContainer>
+          <FormTitle>
+            <FaMusic style={{ marginRight: '10px' }} />
+            Welcome Back
+          </FormTitle>
+          <FormSubtitle>Sign in to continue to BeatBlend</FormSubtitle>
+
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
+            <FormGroup>
+              <FormLabel>Email</FormLabel>
+              <FormInput
+                type="email"
+                placeholder="Enter your email"
+                {...register('email')}
+                autoComplete="email"
+              />
+              {errors.email && (
+                <ErrorMessage>{errors.email.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            <FormGroup>
+              <FormLabel>Password</FormLabel>
+              <FormInput
+                type="password"
+                placeholder="Enter your password"
+                {...register('password')}
+                autoComplete="current-password"
+              />
+              {errors.password && (
+                <ErrorMessage>{errors.password.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            {loginError && <ErrorMessage>{loginError}</ErrorMessage>}
+
+            <FormButton type="submit" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </FormButton>
+          </form>
+
+          <OrDivider>
+            <span>or continue with</span>
+          </OrDivider>
+
+          <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+            <SocialButton provider="google" onClick={() => {}}>
+              <FaGoogle /> Continue with Google
+            </SocialButton>
+          </GoogleOAuthProvider>
+
+          <AppleLogin
+            clientId={process.env.REACT_APP_APPLE_CLIENT_ID}
+            redirectURI="https://your-app-url/auth/apple/callback"
+            render={renderProps => (
+              <SocialButton provider="apple" onClick={renderProps.onClick}>
+                <FaApple /> Continue with Apple
+              </SocialButton>
+            )}
+          />
+
+          <FormLink>
+            Don't have an account?
+            <Link to="/register"> Sign up</Link>
+          </FormLink>
+        </AuthFormContainer>
+      </motion.div>
     </AuthContainer>
   );
 };

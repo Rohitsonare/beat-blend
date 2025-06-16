@@ -1,6 +1,14 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 
+// Create axios instance with base URL
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 export const AuthContext = createContext();
 
 // Custom hook to use auth context
@@ -20,11 +28,13 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   // Set axios default headers
-  if (token) {
-    axios.defaults.headers.common['x-auth-token'] = token;
-  } else {
-    delete axios.defaults.headers.common['x-auth-token'];
-  }
+  useEffect(() => {
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
 
   // Load user if token exists
   useEffect(() => {
@@ -35,9 +45,10 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const res = await axios.get('/api/auth');
+        const res = await api.get('/auth');
         setUser(res.data);
         setIsAuthenticated(true);
+        setError(null);
       } catch (err) {
         localStorage.removeItem('token');
         setToken(null);
@@ -56,15 +67,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const res = await axios.post('/api/auth/register', formData);
+      const res = await api.post('/auth/register', formData);
       
       localStorage.setItem('token', res.data.token);
       setToken(res.data.token);
-      
-      return true;
+      setUser(res.data.user);
+      setIsAuthenticated(true);
+      return res.data;
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
-      return false;
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -76,15 +88,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const res = await axios.post('/api/auth/login', formData);
+      const res = await api.post('/auth/login', formData);
       
       localStorage.setItem('token', res.data.token);
       setToken(res.data.token);
-      
-      return true;
+      setUser(res.data.user);
+      setIsAuthenticated(true);
+      return res.data;
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
-      return false;
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -96,17 +109,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-  };
-
-  // Get captcha
-  const getCaptcha = async () => {
-    try {
-      const res = await axios.get('/api/auth/captcha');
-      return res.data;
-    } catch (err) {
-      setError('Failed to load captcha');
-      return null;
-    }
+    setError(null);
   };
 
   // Clear error
@@ -123,7 +126,6 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
-        getCaptcha,
         clearError
       }}
     >

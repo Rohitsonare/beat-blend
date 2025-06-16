@@ -43,6 +43,18 @@ const userSchema = new Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  authProvider: {
+    type: String,
+    required: true,
+    enum: ['email', 'google', 'apple'],
+    default: 'email'
+  },
+  googleId: String,
+  appleId: String,
+  lastLogin: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true
@@ -50,8 +62,8 @@ const userSchema = new Schema({
 
 // Pre-save hook to hash password
 userSchema.pre('save', async function(next) {
-  // Only hash the password if it's modified (or new)
-  if (!this.isModified('password')) return next();
+  // Only hash the password if it's modified (or new) and authProvider is email
+  if (this.authProvider === 'email' && !this.isModified('password')) return next();
   
   try {
     // Generate a salt
@@ -66,6 +78,10 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  // If authProvider is not email, we cannot compare password
+  if (this.authProvider !== 'email') {
+    return false;
+  }
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {

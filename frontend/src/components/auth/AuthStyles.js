@@ -92,31 +92,61 @@ export const FormInput = styled(motion.input)`
   }
 `;
 
-export const FormButton = styled(motion.button)`
+export const FormButton = styled.button`
   width: 100%;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 8px;
+  padding: 12px;
   background: linear-gradient(90deg, #f953c6 0%, #b91d73 100%);
+  border: none;
+  border-radius: 10px;
   color: white;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 1rem;
-  
+
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 7px 14px rgba(249, 83, 198, 0.2);
+    box-shadow: 0 6px 20px rgba(249, 83, 198, 0.3);
   }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
+
   &:disabled {
-    background: #666;
+    opacity: 0.7;
     cursor: not-allowed;
+  }
+`;
+
+export const SocialButton = styled(FormButton)`
+  background: ${props => props.provider === 'google' ? '#fff' : '#000'};
+  color: ${props => props.provider === 'google' ? '#333' : '#fff'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  border: ${props => props.provider === 'google' ? '1px solid #ddd' : 'none'};
+
+  &:hover {
+    background: ${props => props.provider === 'google' ? '#f8f8f8' : '#333'};
+  }
+`;
+
+export const OrDivider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: rgba(255, 255, 255, 0.5);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  span {
+    padding: 0 15px;
+    font-size: 0.9rem;
   }
 `;
 

@@ -1,12 +1,14 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import AppleLogin from 'react-apple-login';
+import { FaGoogle, FaApple, FaMusic } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
-import { FaMusic, FaRedo, FaHeadphones } from 'react-icons/fa';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   AuthContainer,
   AuthFormContainer,
@@ -18,80 +20,93 @@ import {
   FormButton,
   FormLink,
   ErrorMessage,
-  CaptchaContainer,
-  CaptchaImage,
-  RefreshButton,
-  MusicNote,
-  VinylRecord,
-  WaveAnimation,
-  PulsingCircle
+  SocialButton,
+  OrDivider
 } from './AuthStyles';
 
 // Form validation schema
 const schema = yup.object().shape({
-  username: yup.string().required('Username is required').min(3, 'Username must be at least 3 characters'),
+  name: yup.string().required('Name is required'),
   email: yup.string().email('Please enter a valid email').required('Email is required'),
-  password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
-  confirmPassword: yup.string().oneOf([yup.ref('password'), null], 'Passwords must match').required('Confirm password is required'),
-  city: yup.string().required('City is required for location-based features'),
-  captcha: yup.string().required('Please enter the captcha text')
+  password: yup.string()
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    ),
+  confirmPassword: yup.string()
+    .required('Please confirm your password')
+    .oneOf([yup.ref('password')], 'Passwords must match')
 });
 
 const Register = () => {
-  const { register: registerUser, error, clearError, getCaptcha, isAuthenticated } = useContext(AuthContext);
-  const [captchaData, setCaptchaData] = useState({ captchaSvg: '', captchaId: '' });
-  const [isLoading, setIsLoading] = useState(false);
+  const { register: registerUser, isAuthenticated, error: authError } = useAuth();
   const navigate = useNavigate();
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: yupResolver(schema)
   });
 
   // Redirect if authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
-  // Load captcha on component mount
-  useEffect(() => {
-    loadCaptcha();
-    // Clear any previous errors
-    clearError();
-  }, []);
-
-  const loadCaptcha = async () => {
-    const data = await getCaptcha();
-    if (data) {
-      setCaptchaData(data);
+  const onSubmit = async (data) => {
+    setIsLoading(true);
+    try {
+      await registerUser(data);
+      toast.success('Registration successful!');
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const onSubmit = async (data) => {
-    setIsLoading(true);
-    
-    // Remove confirmPassword from data before sending to API
-    const { confirmPassword, ...formData } = data;
-    
-    // Add captchaId to form data
-    const registerData = {
-      ...formData,
-      captchaId: captchaData.captchaId
-    };
-    
-    const success = await registerUser(registerData);
-    
-    if (success) {
-      toast.success('Registration successful! Welcome to Beat Blend!');
-      navigate('/');
-    } else {
-      // Refresh captcha on failed registration
-      loadCaptcha();
-      reset({ ...data, captcha: '' });
+  const handleGoogleSuccess = async (response) => {
+    try {
+      const result = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token: response.credential })
+      });
+      const data = await result.json();
+      if (data.token) {
+        registerUser({ token: data.token });
+        toast.success('Google registration successful!');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      toast.error('Google registration failed');
     }
-    
-    setIsLoading(false);
+  };
+
+  const handleAppleSuccess = async (response) => {
+    try {
+      const result = await fetch('/api/auth/apple', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(response)
+      });
+      const data = await result.json();
+      if (data.token) {
+        registerUser({ token: data.token });
+        toast.success('Apple registration successful!');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      toast.error('Apple registration failed');
+    }
   };
 
   // Animation variants
@@ -118,136 +133,100 @@ const Register = () => {
 
   return (
     <AuthContainer>
-      {/* Decorative elements */}
-      <MusicNote size="2rem" top="5%" left="15%" duration="7s" delay="0.5s">♪</MusicNote>
-      <MusicNote size="3rem" top="25%" left="85%" duration="8s" delay="1s">♫</MusicNote>
-      <MusicNote size="2.5rem" top="75%" left="10%" duration="6s" delay="1.5s">♩</MusicNote>
-      <MusicNote size="4rem" top="65%" left="80%" duration="9s" delay="0.2s">♬</MusicNote>
-      
-      <VinylRecord size="200px" top="5%" right="5%" duration="30s" />
-      <PulsingCircle size="350px" top="-150px" left="-150px" duration="6s" />
-      <PulsingCircle size="300px" top="60%" left="80%" duration="8s" />
-      
-      <WaveAnimation />
-      
-      <AuthFormContainer
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <FormTitle variants={itemVariants}>
-          <FaHeadphones style={{ marginRight: '10px' }} />
-          Join Beat Blend
-        </FormTitle>
-        
-        <FormSubtitle variants={itemVariants}>
-          Create your account to start your musical journey
-        </FormSubtitle>
-        
-        {error && (
-          <ErrorMessage 
-            variants={itemVariants}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {error}
-          </ErrorMessage>
-        )}
-        
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Username</FormLabel>
-            <FormInput 
-              type="text" 
-              placeholder="Choose a username" 
-              {...register('username')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.username && <p className="error-text">{errors.username.message}</p>}
-          </FormGroup>
-          
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Email</FormLabel>
-            <FormInput 
-              type="email" 
-              placeholder="your@email.com" 
-              {...register('email')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.email && <p className="error-text">{errors.email.message}</p>}
-          </FormGroup>
-          
-          <FormGroup variants={itemVariants}>
-            <FormLabel>City</FormLabel>
-            <FormInput 
-              type="text" 
-              placeholder="Your city" 
-              {...register('city')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.city && <p className="error-text">{errors.city.message}</p>}
-          </FormGroup>
-          
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Password</FormLabel>
-            <FormInput 
-              type="password" 
-              placeholder="Create a password" 
-              {...register('password')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.password && <p className="error-text">{errors.password.message}</p>}
-          </FormGroup>
-          
-          <FormGroup variants={itemVariants}>
-            <FormLabel>Confirm Password</FormLabel>
-            <FormInput 
-              type="password" 
-              placeholder="Confirm your password" 
-              {...register('confirmPassword')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
-          </FormGroup>
-          
-          <CaptchaContainer variants={itemVariants}>
-            <FormLabel>Captcha</FormLabel>
-            <CaptchaImage 
-              dangerouslySetInnerHTML={{ __html: captchaData.captchaSvg }}
-            />
-            <FormInput 
-              type="text" 
-              placeholder="Enter captcha text" 
-              {...register('captcha')} 
-              whileFocus={{ scale: 1.02 }}
-            />
-            {errors.captcha && <p className="error-text">{errors.captcha.message}</p>}
-            <RefreshButton 
-              type="button" 
-              onClick={loadCaptcha}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaRedo /> Refresh Captcha
-            </RefreshButton>
-          </CaptchaContainer>
-          
-          <FormButton 
-            type="submit" 
-            disabled={isLoading}
-            variants={itemVariants}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {isLoading ? 'Creating Account...' : 'Sign Up'}
-          </FormButton>
-        </form>
-        
-        <FormLink variants={itemVariants}>
-          Already have an account? <Link to="/login">Login</Link>
-        </FormLink>
-      </AuthFormContainer>
+        <AuthFormContainer>
+          <FormTitle>
+            <FaMusic style={{ marginRight: '10px' }} />
+            Join BeatBlend
+          </FormTitle>
+          <FormSubtitle>Create your account and start making music</FormSubtitle>
+
+          <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
+            <SocialButton provider="google" onClick={() => {}}>
+              <FaGoogle /> Sign up with Google
+            </SocialButton>
+          </GoogleOAuthProvider>
+
+          <AppleLogin
+            clientId={process.env.REACT_APP_APPLE_CLIENT_ID}
+            redirectURI="https://your-app-url/auth/apple/callback"
+            render={renderProps => (
+              <SocialButton provider="apple" onClick={renderProps.onClick}>
+                <FaApple /> Sign up with Apple
+              </SocialButton>
+            )}
+          />
+
+          <OrDivider>
+            <span>or sign up with email</span>
+          </OrDivider>
+
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <FormGroup>
+              <FormLabel>Full Name</FormLabel>
+              <FormInput
+                type="text"
+                placeholder="Enter your full name"
+                {...register('name')}
+              />
+              {errors.name && (
+                <ErrorMessage>{errors.name.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            <FormGroup>
+              <FormLabel>Email</FormLabel>
+              <FormInput
+                type="email"
+                placeholder="Enter your email"
+                {...register('email')}
+              />
+              {errors.email && (
+                <ErrorMessage>{errors.email.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            <FormGroup>
+              <FormLabel>Password</FormLabel>
+              <FormInput
+                type="password"
+                placeholder="Create a password"
+                {...register('password')}
+              />
+              {errors.password && (
+                <ErrorMessage>{errors.password.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            <FormGroup>
+              <FormLabel>Confirm Password</FormLabel>
+              <FormInput
+                type="password"
+                placeholder="Confirm your password"
+                {...register('confirmPassword')}
+              />
+              {errors.confirmPassword && (
+                <ErrorMessage>{errors.confirmPassword.message}</ErrorMessage>
+              )}
+            </FormGroup>
+
+            {authError && <ErrorMessage>{authError}</ErrorMessage>}
+
+            <FormButton type="submit" disabled={isLoading}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </FormButton>
+          </form>
+
+          <FormLink>
+            Already have an account?
+            <Link to="/login">Log in</Link>
+          </FormLink>
+        </AuthFormContainer>
+      </motion.div>
     </AuthContainer>
   );
 };

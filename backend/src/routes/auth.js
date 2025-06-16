@@ -106,35 +106,28 @@ router.post('/register', [
  */
 router.post('/login', [
   check('email', 'Please include a valid email').isEmail(),
-  check('password', 'Password is required').exists(),
-  check('captcha', 'Captcha is required').not().isEmpty()
+  check('password', 'Password is required').exists()
 ], async (req, res) => {
   // Validate inputs
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ 
+      message: 'Invalid input',
+      errors: errors.array() 
+    });
   }
 
-  const { email, password, captcha, captchaId } = req.body;
-
-  // Verify captcha
-  const storedCaptcha = captchaStore.get(captchaId);
-  if (!storedCaptcha || storedCaptcha.toLowerCase() !== captcha.toLowerCase()) {
-    return res.status(400).json({ message: 'Invalid captcha' });
-  }
-
-  // Delete used captcha
-  captchaStore.delete(captchaId);
+  const { email, password } = req.body;
 
   try {
     // Check if user exists
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
+    // Validate password
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -153,11 +146,18 @@ router.post('/login', [
       { expiresIn: '24h' },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email
+          }
+        });
       }
     );
   } catch (err) {
-    console.error('Error in login route:', err.message);
+    console.error('Error in login route:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
